@@ -1,7 +1,18 @@
-# DES lab solution written in a simple student-style way.
-# This file is separate from the original project files.
-# No imports, no modules, just plain Python logic.
+# DES one-round implementation with study comments
+# ------------------------------------------------------------
+# This file demonstrates the main steps used in DES encryption:
+#   1) initial permutation of the plaintext
+#   2) key expansion using PC-1 and PC-2
+#   3) splitting the key into halves and shifting them
+#   4) expansion, XOR, S-box substitution, and permutation
+#   5) Feistel round structure
+#
+# This is a simplified student-style DES implementation, not the full
+# original DES library code. It focuses on how the algorithm works.
+# ------------------------------------------------------------
 
+# DES initial permutation table.
+# It tells us which bit positions to take from the 64-bit plaintext block.
 IP_TABLE = (
     58, 50, 42, 34, 26, 18, 10, 2,
     60, 52, 44, 36, 28, 20, 12, 4,
@@ -13,6 +24,8 @@ IP_TABLE = (
     63, 55, 47, 39, 31, 23, 15, 7,
 )
 
+# PC-1: Permuted Choice 1 for the key schedule.
+# It takes the 64-bit key and reduces it to 56 bits.
 PC1_TABLE = (
     57, 49, 41, 33, 25, 17, 9,
     1, 58, 50, 42, 34, 26, 18,
@@ -24,6 +37,8 @@ PC1_TABLE = (
     21, 13, 5, 28, 20, 12, 4,
 )
 
+# PC-2: Permuted Choice 2.
+# It expands the 56-bit key into a 48-bit round key for a specific round.
 PC2_TABLE = (
     14, 17, 11, 24, 1, 5,
     3, 28, 15, 6, 21, 10,
@@ -35,6 +50,8 @@ PC2_TABLE = (
     46, 42, 50, 36, 29, 32,
 )
 
+# Expansion permutation E-table.
+# It expands the 32-bit right half into 48 bits before XOR with the round key.
 E_TABLE = (
     32, 1, 2, 3, 4, 5,
     4, 5, 6, 7, 8, 9,
@@ -46,6 +63,8 @@ E_TABLE = (
     28, 29, 30, 31, 32, 1,
 )
 
+# P-table used at the end of the Feistel round.
+# It permutes the 32-bit result from the S-box stage.
 P_TABLE = (
     16, 7, 20, 21, 29, 12, 28, 17,
     1, 15, 23, 26, 5, 18, 2, 8,
@@ -53,8 +72,13 @@ P_TABLE = (
     30, 6, 22, 11, 4, 25, 10, 31,
 )
 
+# DES key rotation amounts for each round.
+# For example: round 1 rotates by 1 bit, round 2 also rotates by 1, round 3 by 2, etc.
 LEFT_SHIFTS = (1, 1, 2, 2, 2, 2, 2, 2, 1, 2, 2, 2, 2, 2, 2, 1)
 
+# 8 S-boxes used in DES.
+# Each S-box maps a 6-bit value to a 4-bit value.
+# This is the non-linear part of DES.
 S_BOXES = (
     (
         (14, 4, 13, 1, 2, 15, 11, 8, 3, 10, 6, 12, 5, 9, 0, 7),
@@ -107,15 +131,23 @@ S_BOXES = (
 )
 
 
+# ------------------------------------------------------------
+# Utility functions for binary operations.
+# ------------------------------------------------------------
+
 def validate_bits(block, length):
+    # Input must be a string of exactly 'length' characters.
     if type(block) != str or len(block) != length:
         raise ValueError("Block must be a string of length " + str(length))
+    # Only binary digits 0 or 1 are allowed.
     for bit in block:
         if bit not in "01":
             raise ValueError("Block must contain only '0' and '1'")
 
 
 def permute(block, table):
+    # Reorder bits according to the table.
+    # Example: if table is (3, 1, 2), we output bits 3,1,2 in that order.
     result = ""
     for pos in table:
         result += block[pos - 1]
@@ -123,6 +155,8 @@ def permute(block, table):
 
 
 def text_to_bits(text):
+    # Convert a normal text string to binary.
+    # Example: 'A' -> 01000001
     bits = ""
     for ch in text:
         bits += format(ord(ch), '08b')
@@ -130,15 +164,19 @@ def text_to_bits(text):
 
 
 def bits_to_hex(bits):
+    # Convert bits into hexadecimal for readable output.
     value = int(bits, 2)
     return hex(value)[2:].upper().zfill(len(bits) // 4)
 
 
 def hex_to_bits(hex_value):
+    # Convert 16-hex-digit key to 64-bit binary.
     return format(int(hex_value, 16), '064b')
 
 
 def xor_strings(a, b):
+    # XOR bit-by-bit.
+    # If bits are same -> 0, otherwise -> 1
     result = ""
     for i in range(len(a)):
         if a[i] == b[i]:
@@ -149,19 +187,28 @@ def xor_strings(a, b):
 
 
 def left_rotate(block, shift_amount):
+    # Circular left rotation.
     return block[shift_amount:] + block[:shift_amount]
 
+
+# ------------------------------------------------------------
+# DES permutation and key schedule functions.
+# ------------------------------------------------------------
+
 def desInitialPermutation(block):
+    # Apply initial permutation to 64-bit plaintext.
     validate_bits(block, 64)
     return permute(block, IP_TABLE)
 
 
 def desPermutedChoice1(block):
+    # Reduce 64-bit key to 56 bits using PC-1.
     validate_bits(block, 64)
     return permute(block, PC1_TABLE)
 
 
 def desLeftShift(block, round_number):
+    # Rotate each 28-bit key half left by DES shift amount.
     validate_bits(block, 28)
     if round_number < 1 or round_number > 16:
         raise ValueError("Round number must be between 1 and 16")
@@ -170,33 +217,39 @@ def desLeftShift(block, round_number):
 
 
 def desPermutedChoice2(block):
+    # Convert 56-bit key material into 48-bit round key via PC-2.
     validate_bits(block, 56)
     return permute(block, PC2_TABLE)
 
 
 def desExpansionPermutation(block):
+    # Expand 32-bit right half to 48 bits.
     validate_bits(block, 32)
     return permute(block, E_TABLE)
 
 
 def getSubBoxes(block):
+    # Split 48 bits into 8 groups of 6 bits.
+    # Send each 6-bit chunk into one S-box.
     validate_bits(block, 48)
     result = ""
     for i in range(8):
         chunk = block[i * 6:(i + 1) * 6]
-        row = int(chunk[0] + chunk[5], 2)
-        col = int(chunk[1:5], 2)
+        row = int(chunk[0] + chunk[5], 2)   # first and last bits decide row
+        col = int(chunk[1:5], 2)            # middle 4 bits decide column
         value = S_BOXES[i][row][col]
         result += format(value, '04b')
     return result
 
 
 def desRoundPermutation(block):
+    # Final permutation inside the Feistel round.
     validate_bits(block, 32)
     return permute(block, P_TABLE)
 
 
 def desFinalPermutation(block):
+    # Final inverse-like permutation for the completed DES block.
     validate_bits(block, 64)
     fp_table = []
     for i in range(1, 65):
@@ -204,28 +257,41 @@ def desFinalPermutation(block):
     return permute(block, fp_table)
 
 
+# ------------------------------------------------------------
+# Key generation and Feistel round logic.
+# ------------------------------------------------------------
+
 # ---------- lab task 2 ----------
 def generate_subkeys(key):
-    # key can be 64-bit binary string or 16-digit hex string
+    # Generate all 16 round subkeys from the main 64-bit key.
+    # Key can be: 64-bit binary string or 16-digit hex string.
     if type(key) == str and len(key) == 16:
         key = hex_to_bits(key)
     elif type(key) != str or len(key) != 64:
         raise ValueError("Key must be 64-bit binary string or 16-digit hex string")
     validate_bits(key, 64)
 
+    # Apply PC-1 to get 56-bit key.
     permuted_key = desPermutedChoice1(key)
     left = permuted_key[:28]
     right = permuted_key[28:]
 
     subkeys = []
     for round_number in range(1, 17):
+        # Rotate each half for this round.
         left = desLeftShift(left, round_number)
         right = desLeftShift(right, round_number)
+        # Recombine and apply PC-2 to produce 48-bit round key.
         subkeys.append(desPermutedChoice2(left + right))
     return subkeys
 
 
 def feistel_round(right_half, subkey):
+    # One Feistel round step:
+    # 1) expand right half to 48 bits
+    # 2) XOR with subkey
+    # 3) pass through S-boxes
+    # 4) permute output
     expanded = desExpansionPermutation(right_half)
     xored = xor_strings(expanded, subkey)
     substituted = getSubBoxes(xored)
@@ -233,6 +299,7 @@ def feistel_round(right_half, subkey):
 
 
 def desEncryption(plaintext, key):
+    # Encrypt one 64-bit block using DES-like Feistel rounds.
     if type(plaintext) == str and len(plaintext) == 8:
         plaintext = text_to_bits(plaintext)
     elif type(plaintext) == str and len(plaintext) == 16:
@@ -247,6 +314,7 @@ def desEncryption(plaintext, key):
     left = initial[:32]
     right = initial[32:]
 
+    # Feistel network: each round updates left and right.
     for key_part in subkeys:
         new_left = right
         new_right = xor_strings(left, feistel_round(right, key_part))
@@ -259,6 +327,7 @@ def desEncryption(plaintext, key):
 
 
 def desDecryption(ciphertext, key):
+    # Decryption uses the same round structure but reversed round keys.
     if type(ciphertext) == str and len(ciphertext) == 16:
         ciphertext = hex_to_bits(ciphertext)
     elif type(ciphertext) != str or len(ciphertext) != 64:
@@ -272,6 +341,7 @@ def desDecryption(ciphertext, key):
     left = initial[:32]
     right = initial[32:]
 
+    # Reversing the round keys is the standard way to decrypt Feistel cipher.
     for key_part in subkeys:
         new_left = right
         new_right = xor_strings(left, feistel_round(right, key_part))
@@ -283,8 +353,9 @@ def desDecryption(ciphertext, key):
     return bits_to_hex(plain_bits)
 
 
-
-
+# ------------------------------------------------------------
+# Example demonstration.
+# ------------------------------------------------------------
 if __name__ == "__main__":
     plain = "ABCDEFGH"
     key = "133457799BBCDFF1"
